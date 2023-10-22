@@ -3,17 +3,19 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 
+const imgRoutes = require('./api/routes/imgroute');
 const userRoutes = require('./api/routes/userRoute');
 const postRoutes = require('./api/routes/postRoute');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+// const MONGODB = `mongodb://localhost:27017/rent`
+mongoose.connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/rent", { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => {
         console.log('Connected to database');
     })
-    .catch(() => {
+    .catch((error) => {
+        console.log(error);
         console.log('Connection failed');
     });
 
@@ -23,7 +25,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.use('/', userRoutes);
 app.use('/', postRoutes);
-
+app.use('/',imgRoutes);
 app.use('/', (req, res) => {
     res.status(404).send('Welcome to Rent-My-Home');
 });
