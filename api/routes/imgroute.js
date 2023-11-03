@@ -3,61 +3,75 @@ const multer = require('multer');
 const path = require('path');
 const Image = require('../models/image');
 const app = express();
-// const port = 3000;
-const storage = multer.memoryStorage();
+
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // console.log(__dirname);
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+
 const upload = multer({ storage: storage });
 
-// Routes
-app.post('/upload', upload.array('images', 10), async (req, res) => {
+
+
+app.post('/upload', upload.array('images', 5), async (req, res) => {
   try {
-    const images = req.files.map((file) => {
-      return {
-        uid:req.body.uid,
+    const files = req.files;
+    if (!files) {
+      return res.status(400).json({ error: 'Please upload one or more files' });
+    }
+
+    const uploadedImages = [];
+
+    for (const file of files) {
+      const image = new Image({
         name: file.originalname,
-        image: {
-          data: file.buffer,
-          contentType: file.mimetype,
-        },
-      };
-    });
+        path: file.path,
+        postId: req.body.postId
+      });
 
-    const savedImages = await Image.insertMany(images);
-    const imageIds= await savedImages.map(image => image._id)
-    const user = await Image.findOne({ uid: req.body.uid });
-
-    res.json({
-      userID: user.uid,
-      message: `Uploaded ${images.length} images successfully!`,
-      id : imageIds
-    });
-  }
-    catch (error) {
-      res.status(500).send(error.message);
-    }
-});
-
-
-app.get('/images/:uid', async (req, res) => {
-  try {
-    const images = await Image.find({ uid: req.params.uid });
-
-    if (!images || images.length === 0) {
-      return res.status(404).send('No images found for this uid');
+      const savedImage = await image.save();
+      uploadedImages.push(savedImage);
     }
 
-    const responseData = images.map(image => {
-      return {
-        name: image.name,
-        data: image.image.data.toString('base64'),
-        contentType: image.image.contentType
-      };
-    });
-
-    res.send(responseData);
+    res.status(200).json({ message: 'Files uploaded and saved to the database', uploadedImages });
   } catch (err) {
-    res.status(500).send(err.message);
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
+
+
+app.get('/images/:postId', async (req, res) => {
+  try {
+    const postId = req.params.postId;
+
+    if (!postId) {
+      return res.status(400).json({ error: 'Please provide a valid postId' });
+    }
+
+    const images = await Image.find({ postId });
+
+    res.status(200).json(images);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+});
+
+
+
+
+
+
+
+
 
 
 
